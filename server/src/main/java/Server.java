@@ -1,9 +1,11 @@
 import io.netty.bootstrap.ServerBootstrap;
 import io.netty.buffer.ByteBuf;
+import io.netty.buffer.Unpooled;
 import io.netty.channel.*;
 import io.netty.channel.nio.NioEventLoopGroup;
 import io.netty.channel.socket.nio.NioServerSocketChannel;
 import io.netty.channel.socket.nio.NioSocketChannel;
+import java.nio.charset.StandardCharsets;
 
 public class Server {
     private final int port;
@@ -32,6 +34,8 @@ public class Server {
                             ch.pipeline().addLast(
                                     new ChannelInboundHandlerAdapter() {
 
+                                        String messageStorage = "";
+
                                         @Override
                                         public void channelRegistered(ChannelHandlerContext ctx) {
                                             System.out.println("channelRegistered");
@@ -57,11 +61,16 @@ public class Server {
                                             System.out.println("channelRead");
                                             final ByteBuf m = (ByteBuf) msg;
                                             for (int i = m.readerIndex(); i < m.writerIndex(); i++) {
-                                                System.out.print((char) m.getByte(i)); //читаем данные из буфера так, чтобы не сдвинуть индексы
+                                                if (m.getByte(i) == 13) {
+                                                    System.out.print("Получен символ переноса строки");
+                                                    ByteBuf reply = Unpooled.wrappedBuffer(messageStorage.getBytes(StandardCharsets.UTF_8));
+                                                    ctx.writeAndFlush(reply);
+                                                    messageStorage = "";
+                                                } else {
+                                                    System.out.println((char) m.getByte(i));
+                                                    messageStorage += (char) m.getByte(i);
+                                                }
                                             }
-                                            System.out.flush();
-                                            System.out.println();
-                                            ctx.writeAndFlush(msg); //Отправка сообщения обратно клиенту
                                         }
 
                                         @Override
